@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NFL Survivor League</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --navy: #0a1628;
+      --gold: #D4A017;
+      --gold-dark: #B8860B;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --green: #15803d;
+      --green-bg: rgba(34,197,94,.12);
+      --red: #dc2626;
+      --red-bg: rgba(239,68,68,.12);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: #1a1a1a; font-family: 'Inter', -apple-system, sans-serif; min-height: 100vh; }
+
+    /* SCREENS */
+    .screen { display: none; min-height: 100vh; }
+    .screen.active { display: block; }
+
+    /* AUTH */
+    #auth-screen { display: none; align-items: center; justify-content: center; min-height: 100vh; background: var(--navy); }
+    #auth-screen.active { display: flex; }
+    .auth-card { background: #112240; border: 1px solid rgba(212,160,23,.2); border-radius: 20px; padding: 2.5rem 2rem; width: 100%; max-width: 380px; }
+    .auth-logo { text-align: center; font-size: 2.2rem; font-weight: 900; letter-spacing: -1px; color: #fff; margin-bottom: .25rem; }
+    .auth-logo span { color: var(--gold); }
+    .auth-sub { text-align: center; color: rgba(255,255,255,.4); font-size: .8rem; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 2rem; }
+    .auth-tabs { display: flex; background: rgba(255,255,255,.06); border-radius: 10px; padding: 3px; margin-bottom: 1.5rem; gap: 3px; }
+    .auth-tab { flex: 1; padding: .5rem; border: none; background: transparent; color: rgba(255,255,255,.4); font-size: .85rem; font-weight: 600; border-radius: 8px; cursor: pointer; }
+    .auth-tab.active { background: rgba(255,255,255,.1); color: #fff; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; font-size: .72rem; color: rgba(255,255,255,.4); margin-bottom: .4rem; letter-spacing: .5px; text-transform: uppercase; }
+    .form-group input { width: 100%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: .75rem 1rem; color: #fff; font-size: .95rem; outline: none; transition: border-color .2s; }
+    .form-group input:focus { border-color: var(--gold); }
+    .btn-auth { width: 100%; padding: .85rem; border: none; border-radius: 10px; background: var(--gold); color: var(--navy); font-size: .95rem; font-weight: 700; cursor: pointer; }
+    .btn-auth:hover { background: #e6b020; }
+    .auth-msg { font-size: .8rem; color: rgba(255,255,255,.4); margin-top: .75rem; text-align: center; }
+    .auth-msg.error { color: #f87171; }
+    .auth-msg.success { color: #4ade80; }
+
+    /* TOP NAV */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .nav-logo { font-weight: 900; font-size: 16px; letter-spacing: -.3px; color: #1a1a1a; }
+    .nav-logo span { color: var(--gold); }
+    .nav-tabs { display: flex; gap: 2px; background: #f3f4f6; border-radius: 8px; padding: 2px; }
+    .nav-tab { font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px; color: var(--muted); border: none; background: transparent; cursor: pointer; transition: all .15s; }
+    .nav-tab.active { background: var(--surface); color: #1a1a1a; }
+    .nav-tab.admin-tab { color: var(--gold-dark); }
+    .nav-user { display: flex; align-items: center; gap: 8px; }
+    .nav-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--gold); color: var(--navy); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
+
+    /* BOTTOM NAV */
+    .bottom-nav { background: var(--surface); border-top: 1px solid var(--border); display: flex; padding: 8px 0 12px; position: sticky; bottom: 0; z-index: 100; }
+    .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: var(--muted); cursor: pointer; border: none; background: transparent; padding: 4px 0; }
+    .bnav-item.active { color: var(--gold-dark); }
+    .bnav-icon { font-size: 20px; }
+
+    /* PAGES */
+    .main-content { padding: 14px 12px 80px; max-width: 560px; margin: 0 auto; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .section-title { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 10px; }
+
+    /* STATS ROW */
+    .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+    .stat-card { background: var(--surface); border-radius: var(--radius); padding: 12px 10px; text-align: center; border: 1px solid var(--border); }
+    .stat-num { font-size: 24px; font-weight: 900; color: var(--gold-dark); line-height: 1; }
+    .stat-label { font-size: 10px; font-weight: 600; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .5px; }
+
+    /* GAME CARD — NFL style split color */
+    .game-card { border-radius: var(--radius); overflow: hidden; margin-bottom: 8px; }
+    .game-teams { display: flex; align-items: stretch; height: 78px; }
+    .team-half { flex: 1; display: flex; align-items: center; padding: 0 12px; gap: 8px; }
+    .team-half.right { flex-direction: row-reverse; }
+    .team-logo { width: 38px; height: 38px; object-fit: contain; flex-shrink: 0; }
+    .team-info { display: flex; flex-direction: column; }
+    .team-half.right .team-info { align-items: flex-end; }
+    .team-abbr { font-size: 13px; font-weight: 800; color: #fff; letter-spacing: .5px; }
+    .team-record { font-size: 9px; color: rgba(255,255,255,.6); font-weight: 500; }
+    .team-score { font-size: 30px; font-weight: 900; color: #fff; margin: 0 8px; line-height: 1; }
+    .team-score.loser { color: rgba(255,255,255,.45); }
+    .vs-divider { width: 1px; background: rgba(255,255,255,.2); flex-shrink: 0; }
+    .game-footer { background: #111827; display: flex; align-items: center; padding: 6px 14px; gap: 8px; }
+    .gf-status { font-size: 10px; font-weight: 700; color: #fff; }
+    .gf-dot { width: 3px; height: 3px; background: rgba(255,255,255,.25); border-radius: 50%; }
+    .gf-meta { font-size: 10px; color: rgba(255,255,255,.45); font-weight: 500; }
+    .gf-picks { margin-left: auto; font-size: 10px; font-weight: 600; color: var(--gold); }
+
+    /* PICK SECTION */
+    .week-header { background: var(--navy); border-radius: var(--radius) var(--radius) 0 0; padding: 11px 14px; display: flex; align-items: center; justify-content: space-between; }
+    .week-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5); letter-spacing: 1px; text-transform: uppercase; }
+    .week-deadline { font-size: 11px; color: var(--gold); font-weight: 600; }
+    .pick-body { background: var(--surface); border-radius: 0 0 var(--radius) var(--radius); padding: 14px; margin-bottom: 8px; border: 1px solid var(--border); border-top: none; }
+    .pick-prompt { font-size: 12px; color: var(--muted); margin-bottom: 10px; font-weight: 500; }
+
+    /* CONFIRMED PICK */
+    .confirmed-pick { display: flex; align-items: center; gap: 14px; }
+    .pick-team-logo { width: 52px; height: 52px; object-fit: contain; }
+    .pick-team-name { font-size: 18px; font-weight: 800; color: #1a1a1a; }
+    .pick-result { font-size: 12px; font-weight: 600; margin-top: 2px; }
+    .pick-result.win { color: var(--green); }
+    .pick-result.loss { color: var(--red); }
+    .pick-result.pending { color: var(--muted); }
+    .change-pick-btn { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--muted); background: #f3f4f6; border: none; border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+
+    /* TEAM GRID */
+    .team-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    @media (min-width: 400px) { .team-grid { grid-template-columns: repeat(5, 1fr); } }
+    @media (min-width: 500px) { .team-grid { grid-template-columns: repeat(6, 1fr); } }
+    .team-btn { background: #f9fafb; border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 4px 6px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: all .15s; }
+    .team-btn:hover:not(.used) { border-color: var(--gold); background: rgba(212,160,23,.06); }
+    .team-btn.selected { border-color: var(--gold); background: rgba(212,160,23,.1); }
+    .team-btn.used { opacity: .28; cursor: not-allowed; }
+    .team-btn img { width: 30px; height: 30px; object-fit: contain; }
+    .team-btn-label { font-size: 9px; font-weight: 700; color: var(--muted); letter-spacing: .3px; }
+    .team-btn.selected .team-btn-label { color: var(--gold-dark); }
+    .confirm-btn { width: 100%; margin-top: 12px; padding: 12px; background: var(--gold); border: none; border-radius: 10px; font-size: 14px; font-weight: 700; color: var(--navy); cursor: pointer; }
+    .confirm-btn:active { background: var(--gold-dark); }
+
+    /* LEADERBOARD */
+    .lboard-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; }
+    .lboard-row { display: flex; align-items: center; padding: 10px 14px; gap: 10px; border-bottom: 1px solid #f3f4f6; }
+    .lboard-row:last-child { border-bottom: none; }
+    .rank { font-size: 14px; font-weight: 800; color: #d1d5db; min-width: 22px; text-align: center; }
+    .rank.g1 { color: #D4A017; }
+    .rank.g2 { color: #9ca3af; }
+    .rank.g3 { color: #cd7f32; }
+    .lboard-name { font-size: 13px; font-weight: 600; color: #1a1a1a; flex: 1; }
+    .lboard-status { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; flex-shrink: 0; }
+    .s-alive { background: var(--green-bg); color: var(--green); }
+    .s-dead { background: var(--red-bg); color: var(--red); }
+    .pick-chips { display: flex; gap: 3px; flex-wrap: wrap; }
+    .chip { min-width: 24px; height: 24px; border-radius: 5px; font-size: 8px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+    .chip.w { background: var(--green-bg); color: var(--green); }
+    .chip.l { background: var(--red-bg); color: var(--red); }
+    .chip.p { background: rgba(212,160,23,.12); color: var(--gold-dark); }
+
+    /* HISTORY */
+    .history-list { display: grid; gap: 6px; }
+    .history-row { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 11px 14px; display: flex; align-items: center; gap: 12px; }
+    .history-week { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 40px; text-transform: uppercase; letter-spacing: .5px; }
+    .history-team { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .history-team img { width: 28px; height: 28px; object-fit: contain; }
+    .history-team-name { font-size: 13px; font-weight: 700; color: #1a1a1a; }
+    .history-result { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
+    .hr-win { background: var(--green-bg); color: var(--green); }
+    .hr-loss { background: var(--red-bg); color: var(--red); }
+    .hr-pending { background: rgba(212,160,23,.1); color: var(--gold-dark); }
+
+    /* ADMIN */
+    .admin-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; margin-bottom: 12px; }
+    .admin-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+    .aform-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .aform-input { width: 100%; background: #f9fafb; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: #1a1a1a; font-size: 13px; outline: none; margin-bottom: 10px; }
+    .aform-input:focus { border-color: var(--gold); }
+    .aform-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn-primary { padding: 10px 16px; background: var(--gold); border: none; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--navy); cursor: pointer; width: 100%; }
+    .btn-secondary { padding: 10px 16px; background: #f3f4f6; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; color: #1a1a1a; cursor: pointer; width: 100%; }
+    .btn-danger-sm { padding: 6px 12px; background: var(--red-bg); border: none; border-radius: 6px; font-size: 11px; font-weight: 700; color: var(--red); cursor: pointer; }
+    .btn-success-sm { padding: 6px 12px; background: var(--green-bg); border: none; border-radius: 6px; font-size: 11px; font-weight: 700; color: var(--green); cursor: pointer; }
+    .results-list { display: grid; gap: 6px; max-height: 280px; overflow-y: auto; }
+    .result-row { display: flex; align-items: center; justify-content: space-between; background: #f9fafb; border-radius: 8px; padding: 8px 12px; font-size: 12px; gap: 8px; flex-wrap: wrap; }
+    .admin-players { display: grid; gap: 6px; }
+    .admin-player-row { display: flex; align-items: center; padding: 9px 12px; background: #f9fafb; border-radius: 8px; gap: 10px; }
+
+    /* EMPTY / LOADER */
+    .loader { text-align: center; padding: 2.5rem; color: var(--muted); }
+    .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid #e5e7eb; border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-state { text-align: center; padding: 2.5rem 1rem; }
+    .empty-icon { font-size: 2rem; margin-bottom: .75rem; opacity: .35; }
+    .empty-text { font-size: 13px; color: var(--muted); }
+
+    /* TOAST */
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; font-size: 13px; font-weight: 500; padding: 10px 20px; border-radius: 30px; opacity: 0; transition: all .25s; z-index: 999; white-space: nowrap; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { background: #dc2626; }
+    #toast.success { background: #15803d; }
+
+    /* STATUS PAGE */
+    .eliminated-card { background: var(--surface); border: 2px solid var(--red-bg); border-radius: var(--radius); padding: 2rem; text-align: center; }
+    .eliminated-card .icon { font-size: 3rem; margin-bottom: .75rem; }
+    .eliminated-card h2 { font-size: 1.25rem; font-weight: 800; color: var(--red); margin-bottom: .5rem; }
+    .eliminated-card p { font-size: 13px; color: var(--muted); }
+
+    /* LOGOUT BUTTON */
+    .logout-btn { font-size: 11px; font-weight: 600; color: var(--muted); background: #f3f4f6; border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+
+    select.aform-input option { color: #1a1a1a; background: #fff; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="auth-screen" class="screen">
+  <div class="auth-card">
+    <div class="auth-logo">🏈 <span>NFL</span> SURVIVOR</div>
+    <p class="auth-sub">Temporada 2025</p>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login',this)">Ingresar</button>
+      <button class="auth-tab" onclick="switchAuthTab('signup',this)">Registrarse</button>
+    </div>
+    <div id="login-form">
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="tu@email.com" /></div>
+      <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••" /></div>
+      <button class="btn-auth" onclick="doLogin()">Ingresar</button>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="form-group"><label>Tu nombre</label><input type="text" id="signup-name" placeholder="Nombre o apodo" /></div>
+      <div class="form-group"><label>Email</label><input type="email" id="signup-email" placeholder="tu@email.com" /></div>
+      <div class="form-group"><label>Contraseña</label><input type="password" id="signup-pass" placeholder="••••••••" /></div>
+      <button class="btn-auth" onclick="doSignup()">Crear cuenta</button>
+    </div>
+    <p class="auth-msg" id="auth-msg"></p>
+  </div>
+</div>
+
+<!-- APP SCREEN -->
+<div id="app-screen" class="screen">
+
+  <nav>
+    <div class="nav-logo">🏈 <span>NFL</span> SURVIVOR</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showPage('picks',this)">Mi Pick</button>
+      <button class="nav-tab" onclick="showPage('leaderboard',this)">Ranking</button>
+      <button class="nav-tab" onclick="showPage('history',this)">Historial</button>
+      <button class="nav-tab admin-tab" id="admin-nav-tab" style="display:none" onclick="showPage('admin',this)">⚙</button>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <button class="logout-btn" onclick="doLogout()">Salir</button>
+    </div>
+  </nav>
+
+  <div class="main-content">
+
+    <!-- PICKS PAGE -->
+    <div class="page active" id="page-picks">
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num" id="stat-alive">–</div><div class="stat-label">Vivos</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-total">–</div><div class="stat-label">Jugadores</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-week">–</div><div class="stat-label">Semana</div></div>
+      </div>
+      <div id="picks-content"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- LEADERBOARD PAGE -->
+    <div class="page" id="page-leaderboard">
+      <div class="section-title">🏆 Ranking general</div>
+      <div id="leaderboard-content"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- HISTORY PAGE -->
+    <div class="page" id="page-history">
+      <div class="section-title">📋 Mis picks</div>
+      <div id="history-content"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- ADMIN PAGE -->
+    <div class="page" id="page-admin">
+      <div class="admin-card">
+        <div class="admin-title">📅 Gestionar semana</div>
+        <div class="aform-label">Semana NFL</div>
+        <select class="aform-input" id="admin-week-num"></select>
+        <div class="aform-label">Deadline para picks</div>
+        <input type="datetime-local" class="aform-input" id="admin-deadline" />
+        <div class="aform-row">
+          <button class="btn-primary" onclick="adminOpenWeek()">Abrir semana</button>
+          <button class="btn-secondary" onclick="adminCloseWeek()">Cerrar semana</button>
+        </div>
+      </div>
+      <div class="admin-card">
+        <div class="admin-title">🏈 Resultados NFL (ESPN)</div>
+        <div class="aform-label">Semana a procesar</div>
+        <select class="aform-input" id="admin-results-week"></select>
+        <button class="btn-secondary" style="margin-bottom:10px" onclick="fetchNFLResults()">↻ Obtener resultados</button>
+        <div id="results-list" class="results-list"></div>
+        <button class="btn-primary" style="margin-top:10px" onclick="processEliminations()">⚡ Procesar eliminaciones</button>
+      </div>
+      <div class="admin-card">
+        <div class="admin-title">👥 Jugadores</div>
+        <div id="admin-players-list"><div class="loader"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-nav">
+    <button class="bnav-item active" onclick="showPage('picks',null,0)">
+      <span class="bnav-icon">🏈</span>Mi Pick
+    </button>
+    <button class="bnav-item" onclick="showPage('leaderboard',null,1)">
+      <span class="bnav-icon">🏆</span>Ranking
+    </button>
+    <button class="bnav-item" onclick="showPage('history',null,2)">
+      <span class="bnav-icon">📋</span>Historial
+    </button>
+    <button class="bnav-item" id="admin-bnav" style="display:none" onclick="showPage('admin',null,3)">
+      <span class="bnav-icon">⚙️</span>Admin
+    </button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════ CONFIG ═══════════════════════════════════
+const SUPABASE_URL = 'TU_SUPABASE_URL'
+const SUPABASE_KEY = 'TU_SUPABASE_ANON_KEY'
+const ADMIN_EMAILS = ['TU_EMAIL_ADMIN@gmail.com']
+const ESPN_API = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
+
+// Colores primarios de cada equipo (para los game cards)
+const TEAM_COLORS = {
+  ARI:'#97233F',ATL:'#A71930',BAL:'#241773',BUF:'#00338D',
+  CAR:'#0085CA',CHI:'#0B162A',CIN:'#FB4F14',CLE:'#311D00',
+  DAL:'#003594',DEN:'#FB4F14',DET:'#0076B6',GB:'#203731',
+  HOU:'#03202F',IND:'#002C5F',JAX:'#006778',KC:'#E31837',
+  LAC:'#0080C6',LAR:'#003594',LV:'#000000',MIA:'#008E97',
+  MIN:'#4F2683',NE:'#002244',NO:'#D3BC8D',NYG:'#0B2265',
+  NYJ:'#125740',PHI:'#004C54',PIT:'#FFB612',SF:'#AA0000',
+  SEA:'#002244',TB:'#D50A0A',TEN:'#4B92DB',WAS:'#5A1414',
+}
+
+const NFL_TEAMS = [
+  {abbr:'ARI',name:'Cardinals'},{abbr:'ATL',name:'Falcons'},{abbr:'BAL',name:'Ravens'},
+  {abbr:'BUF',name:'Bills'},{abbr:'CAR',name:'Panthers'},{abbr:'CHI',name:'Bears'},
+  {abbr:'CIN',name:'Bengals'},{abbr:'CLE',name:'Browns'},{abbr:'DAL',name:'Cowboys'},
+  {abbr:'DEN',name:'Broncos'},{abbr:'DET',name:'Lions'},{abbr:'GB',name:'Packers'},
+  {abbr:'HOU',name:'Texans'},{abbr:'IND',name:'Colts'},{abbr:'JAX',name:'Jaguars'},
+  {abbr:'KC',name:'Chiefs'},{abbr:'LAC',name:'Chargers'},{abbr:'LAR',name:'Rams'},
+  {abbr:'LV',name:'Raiders'},{abbr:'MIA',name:'Dolphins'},{abbr:'MIN',name:'Vikings'},
+  {abbr:'NE',name:'Patriots'},{abbr:'NO',name:'Saints'},{abbr:'NYG',name:'Giants'},
+  {abbr:'NYJ',name:'Jets'},{abbr:'PHI',name:'Eagles'},{abbr:'PIT',name:'Steelers'},
+  {abbr:'SF',name:'49ers'},{abbr:'SEA',name:'Seahawks'},{abbr:'TB',name:'Buccaneers'},
+  {abbr:'TEN',name:'Titans'},{abbr:'WAS',name:'Commanders'},
+]
+
+const logo = abbr => `https://a.espncdn.com/i/teamlogos/nfl/500/${abbr.toLowerCase()}.png`
+
+// ═══════════════ INIT ══════════════════════════════════════
+const { createClient } = supabase
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY)
+let currentUser = null, currentProfile = null, currentWeek = null, myPicks = [], liveResults = {}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  populateWeekSelects()
+  const { data: { session } } = await sb.auth.getSession()
+  if (session) await initApp(session.user)
+  else showScreen('auth')
+})
+
+sb.auth.onAuthStateChange(async (e, session) => {
+  if (e === 'SIGNED_IN' && session) await initApp(session.user)
+  else if (e === 'SIGNED_OUT') showScreen('auth')
+})
+
+async function initApp(user) {
+  currentUser = user
+  const { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).single()
+  currentProfile = profile
+  const initials = (profile?.username || user.email)[0].toUpperCase()
+  document.getElementById('nav-avatar').textContent = initials
+  if (ADMIN_EMAILS.includes(user.email)) {
+    document.getElementById('admin-nav-tab').style.display = 'block'
+    document.getElementById('admin-bnav').style.display = 'flex'
+  }
+  showScreen('app')
+  await loadCurrentWeek()
+  await loadPicksPage()
+}
+
+// ═══════════════ SCREENS ══════════════════════════════════
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'))
+  document.getElementById(name + '-screen').classList.add('active')
+}
+
+function showPage(name, tabEl, bnIdx) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.querySelector('#page-' + name).classList.add('active')
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'))
+  if (tabEl) tabEl.classList.add('active')
+  if (bnIdx !== undefined) {
+    document.querySelectorAll('.bnav-item').forEach((t,i) => t.classList.toggle('active', i === bnIdx))
+    // Sync top tabs
+    const topTabs = document.querySelectorAll('.nav-tab')
+    topTabs.forEach(t => t.classList.remove('active'))
+    if (topTabs[bnIdx]) topTabs[bnIdx].classList.add('active')
+  }
+  if (name === 'leaderboard') loadLeaderboard()
+  if (name === 'history') loadHistory()
+  if (name === 'admin') loadAdminPage()
+}
+
+// ═══════════════ AUTH ══════════════════════════════════════
+function switchAuthTab(tab, btn) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none'
+  document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none'
+  document.getElementById('auth-msg').textContent = ''
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim()
+  const pass = document.getElementById('login-pass').value
+  setAuthMsg('Ingresando...')
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass })
+  if (error) setAuthMsg(error.message, true)
+}
+
+async function doSignup() {
+  const name = document.getElementById('signup-name').value.trim()
+  const email = document.getElementById('signup-email').value.trim()
+  const pass = document.getElementById('signup-pass').value
+  if (!name || !email || !pass) return setAuthMsg('Completa todos los campos', true)
+  setAuthMsg('Creando cuenta...')
+  const { data, error } = await sb.auth.signUp({ email, password: pass })
+  if (error) return setAuthMsg(error.message, true)
+  if (data.user) {
+    await sb.from('profiles').upsert({ id: data.user.id, username: name, email, status: 'alive', streak: 0 })
+    setAuthMsg('✅ Cuenta creada. Revisa tu email para confirmar.', false)
+  }
+}
+
+async function doLogout() { await sb.auth.signOut() }
+function setAuthMsg(msg, isError) {
+  const el = document.getElementById('auth-msg')
+  el.textContent = msg
+  el.className = 'auth-msg' + (isError === true ? ' error' : isError === false ? ' success' : '')
+}
+
+// ═══════════════ CURRENT WEEK ═════════════════════════════
+async function loadCurrentWeek() {
+  const { data } = await sb.from('weeks').select('*').eq('status','open').order('week_number',{ascending:false}).limit(1).maybeSingle()
+  currentWeek = data
+}
+
+// ═══════════════ PICKS PAGE ═══════════════════════════════
+let selectedTeam = null
+
+async function loadPicksPage() {
+  const container = document.getElementById('picks-content')
+  const { data: picks } = await sb.from('picks').select('*').eq('player_id', currentUser.id)
+  myPicks = picks || []
+  const { data: players } = await sb.from('profiles').select('status')
+  const alive = players?.filter(p => p.status === 'alive').length || 0
+  document.getElementById('stat-alive').textContent = alive
+  document.getElementById('stat-total').textContent = players?.length || 0
+  document.getElementById('stat-week').textContent = currentWeek?.week_number || '–'
+
+  if (currentProfile?.status === 'eliminated') {
+    container.innerHTML = `
+      <div class="eliminated-card">
+        <div class="icon">💀</div>
+        <h2>Eliminado</h2>
+        <p>Tu pick fue incorrecto esta semana.<br>Sigue el juego en el Ranking.</p>
+      </div>`
+    return
+  }
+
+  if (!currentWeek) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">No hay semana activa.<br>El admin abrirá la siguiente semana pronto.</div></div>`
+    return
+  }
+
+  const weekPick = myPicks.find(p => p.week_number === currentWeek.week_number)
+  const usedTeams = myPicks.map(p => p.team_abbr)
+  const deadlinePast = currentWeek.deadline ? new Date() > new Date(currentWeek.deadline) : false
+  const deadlineStr = currentWeek.deadline ? new Date(currentWeek.deadline).toLocaleString('es-MX',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Por definir'
+
+  let html = `
+    <div class="week-header">
+      <span class="week-label">Semana ${currentWeek.week_number}</span>
+      <span class="week-deadline">⏱ ${deadlineStr}</span>
+    </div>`
+
+  if (weekPick) {
+    const team = NFL_TEAMS.find(t => t.abbr === weekPick.team_abbr)
+    const resIcon = weekPick.result === 'win' ? '✅ Ganó' : weekPick.result === 'loss' ? '❌ Perdió' : '⏳ Pendiente'
+    const resCls = weekPick.result === 'win' ? 'win' : weekPick.result === 'loss' ? 'loss' : 'pending'
+    html += `
+      <div class="pick-body">
+        <div class="pick-prompt">Tu pick esta semana</div>
+        <div class="confirmed-pick">
+          <img class="pick-team-logo" src="${logo(weekPick.team_abbr)}" onerror="this.style.display='none'" />
+          <div>
+            <div class="pick-team-name">${team?.name || weekPick.team_abbr}</div>
+            <div class="pick-result ${resCls}">${resIcon}</div>
+          </div>
+          ${!weekPick.result && !deadlinePast ? `<button class="change-pick-btn" onclick="cancelPick(${weekPick.id})">Cambiar</button>` : ''}
+        </div>
+      </div>`
+  } else if (!deadlinePast) {
+    html += `
+      <div class="pick-body">
+        <div class="pick-prompt">Escoge tu equipo — sin repetir en la temporada</div>
+        <div class="team-grid" id="team-grid">`
+    NFL_TEAMS.forEach(t => {
+      const used = usedTeams.includes(t.abbr)
+      html += `<div class="team-btn ${used ? 'used' : ''}" id="tbtn-${t.abbr}" onclick="${used ? '' : `selectTeam('${t.abbr}')`}">
+        <img src="${logo(t.abbr)}" onerror="this.style.display='none'" />
+        <div class="team-btn-label">${t.abbr}</div>
+      </div>`
+    })
+    html += `</div>
+        <button class="confirm-btn" id="confirm-btn" style="display:none" onclick="confirmPick()">Confirmar Pick</button>
+      </div>`
+  } else {
+    html += `<div class="pick-body"><div class="empty-state"><div class="empty-icon">🔒</div><div class="empty-text">El deadline pasó sin hacer pick.</div></div></div>`
+  }
+
+  // Recent games from ESPN
+  html += `<div class="section-title" style="margin-top:16px">Resultados recientes</div><div id="recent-games"><div class="loader"><div class="spinner"></div></div></div>`
+  container.innerHTML = html
+  loadRecentGames()
+}
+
+function selectTeam(abbr) {
+  document.querySelectorAll('.team-btn:not(.used)').forEach(b => b.classList.remove('selected'))
+  document.getElementById('tbtn-' + abbr)?.classList.add('selected')
+  selectedTeam = abbr
+  document.getElementById('confirm-btn').style.display = 'block'
+}
+
+async function confirmPick() {
+  if (!selectedTeam || !currentWeek) return
+  const btn = document.getElementById('confirm-btn')
+  btn.disabled = true; btn.textContent = 'Guardando...'
+  const { error } = await sb.from('picks').insert({ player_id: currentUser.id, week_number: currentWeek.week_number, team_abbr: selectedTeam, result: null })
+  if (error) { showToast('Error: ' + error.message, 'error'); btn.disabled = false; btn.textContent = 'Confirmar Pick' }
+  else { showToast('✅ Pick confirmado: ' + selectedTeam); selectedTeam = null; await loadPicksPage() }
+}
+
+async function cancelPick(pickId) {
+  if (!confirm('¿Cambiar tu pick?')) return
+  await sb.from('picks').delete().eq('id', pickId)
+  selectedTeam = null; await loadPicksPage()
+}
+
+async function loadRecentGames() {
+  const el = document.getElementById('recent-games')
+  if (!el) return
+  try {
+    const wk = currentWeek?.week_number || 1
+    const res = await fetch(`${ESPN_API}?seasontype=2&week=${wk}`)
+    const json = await res.json()
+    const events = (json.events || []).slice(0, 5)
+    if (!events.length) { el.innerHTML = '<div class="empty-state"><div class="empty-text">Sin juegos disponibles</div></div>'; return }
+
+    let html = ''
+    for (const ev of events) {
+      const c = ev.competitions?.[0]; if (!c) continue
+      const home = c.competitors.find(t => t.homeAway === 'home')
+      const away = c.competitors.find(t => t.homeAway === 'away')
+      const done = c.status?.type?.completed
+      const homeAbbr = home.team.abbreviation
+      const awayAbbr = away.team.abbreviation
+      const homeScore = parseInt(home.score || 0)
+      const awayScore = parseInt(away.score || 0)
+      const homeWin = done && homeScore > awayScore
+      const awayWin = done && awayScore > homeScore
+      const hc = TEAM_COLORS[homeAbbr] || '#1a1a2e'
+      const ac = TEAM_COLORS[awayAbbr] || '#1a1a2e'
+      const picksForGame = myPicks.filter(p => p.team_abbr === homeAbbr || p.team_abbr === awayAbbr).length
+
+      html += `
+        <div class="game-card">
+          <div class="game-teams">
+            <div class="team-half" style="background:${ac}">
+              <img class="team-logo" src="${logo(awayAbbr)}" onerror="this.style.display='none'" />
+              <div class="team-info">
+                <div class="team-abbr">${awayAbbr}</div>
+                <div class="team-record">${away.records?.[0]?.summary || ''}</div>
+              </div>
+              <div class="team-score ${done && !awayWin ? 'loser' : ''}">${done ? awayScore : ''}</div>
+            </div>
+            <div class="vs-divider"></div>
+            <div class="team-half right" style="background:${hc}">
+              <img class="team-logo" src="${logo(homeAbbr)}" onerror="this.style.display='none'" />
+              <div class="team-info" style="align-items:flex-end">
+                <div class="team-abbr">${homeAbbr}</div>
+                <div class="team-record">${home.records?.[0]?.summary || ''}</div>
+              </div>
+              <div class="team-score ${done && !homeWin ? 'loser' : ''}">${done ? homeScore : ''}</div>
+            </div>
+          </div>
+          <div class="game-footer">
+            <span class="gf-status">${done ? 'FINAL' : (c.status?.type?.shortDetail || 'Por jugar')}</span>
+            <div class="gf-dot"></div>
+            <span class="gf-meta">${ev.shortName || ''}</span>
+            ${picksForGame ? `<span class="gf-picks">★ Tu liga jugó aquí</span>` : ''}
+          </div>
+        </div>`
+    }
+    el.innerHTML = html
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-text">No se pudieron cargar los juegos.</div></div>'
+  }
+}
+
+// ═══════════════ LEADERBOARD ══════════════════════════════
+async function loadLeaderboard() {
+  const { data: players } = await sb.from('profiles').select('*').order('streak',{ascending:false})
+  const { data: allPicks } = await sb.from('picks').select('*')
+  if (!players) return
+  const picksMap = {}
+  allPicks?.forEach(p => { if (!picksMap[p.player_id]) picksMap[p.player_id] = []; picksMap[p.player_id].push(p) })
+  const sorted = [...players.filter(p => p.status==='alive'), ...players.filter(p => p.status!=='alive')]
+
+  let html = '<div class="lboard-card">'
+  sorted.forEach((p,i) => {
+    const picks = (picksMap[p.id] || []).sort((a,b) => a.week_number - b.week_number)
+    const chips = picks.map(pk => {
+      const cls = pk.result === 'win' ? 'w' : pk.result === 'loss' ? 'l' : 'p'
+      return `<div class="chip ${cls}" title="Wk${pk.week_number}">${pk.team_abbr}</div>`
+    }).join('')
+    const rankCls = i===0?'g1':i===1?'g2':i===2?'g3':''
+    const alive = p.status === 'alive'
+    html += `
+      <div class="lboard-row">
+        <span class="rank ${rankCls}">${i+1}</span>
+        <span class="lboard-name">${p.username || p.email?.split('@')[0]}</span>
+        <div class="pick-chips">${chips || '<span style="font-size:11px;color:#d1d5db">–</span>'}</div>
+        <span class="lboard-status ${alive?'s-alive':'s-dead'}">${alive?'Vivo':'Eliminado'}</span>
+      </div>`
+  })
+  html += '</div>'
+  document.getElementById('leaderboard-content').innerHTML = html
+}
+
+// ═══════════════ HISTORY ══════════════════════════════════
+async function loadHistory() {
+  const { data: picks } = await sb.from('picks').select('*').eq('player_id', currentUser.id).order('week_number')
+  if (!picks?.length) {
+    document.getElementById('history-content').innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Aún no tienes picks.</div></div>'
+    return
+  }
+  let html = '<div class="history-list">'
+  picks.forEach(p => {
+    const team = NFL_TEAMS.find(t => t.abbr === p.team_abbr)
+    const resTxt = p.result === 'win' ? '✅ Ganó' : p.result === 'loss' ? '❌ Perdió' : '⏳ Pendiente'
+    const resCls = p.result === 'win' ? 'hr-win' : p.result === 'loss' ? 'hr-loss' : 'hr-pending'
+    html += `
+      <div class="history-row">
+        <span class="history-week">Wk ${p.week_number}</span>
+        <div class="history-team">
+          <img src="${logo(p.team_abbr)}" onerror="this.style.display='none'" />
+          <span class="history-team-name">${team?.name || p.team_abbr}</span>
+        </div>
+        <span class="history-result ${resCls}">${resTxt}</span>
+      </div>`
+  })
+  html += '</div>'
+  document.getElementById('history-content').innerHTML = html
+}
+
+// ═══════════════ ADMIN ════════════════════════════════════
+function populateWeekSelects() {
+  ['admin-week-num','admin-results-week'].forEach(id => {
+    const sel = document.getElementById(id)
+    if (!sel) return
+    for (let w=1;w<=18;w++) sel.innerHTML += `<option value="${w}">Semana ${w}</option>`
+  })
+}
+
+async function loadAdminPage() {
+  const { data: players } = await sb.from('profiles').select('*').order('username')
+  let html = '<div class="admin-players">'
+  players?.forEach(p => {
+    const alive = p.status === 'alive'
+    html += `
+      <div class="admin-player-row">
+        <span style="flex:1;font-size:13px;font-weight:600">${p.username || p.email}</span>
+        <span class="lboard-status ${alive?'s-alive':'s-dead'}" style="font-size:10px">${alive?'Vivo':'Elim.'}</span>
+        ${alive ? `<button class="btn-danger-sm" onclick="eliminatePlayer('${p.id}')">Eliminar</button>` : `<button class="btn-success-sm" onclick="revivePlayer('${p.id}')">Revivir</button>`}
+      </div>`
+  })
+  html += '</div>'
+  document.getElementById('admin-players-list').innerHTML = html
+}
+
+async function adminOpenWeek() {
+  const wk = document.getElementById('admin-week-num').value
+  const dl = document.getElementById('admin-deadline').value
+  if (!wk) return showToast('Selecciona una semana','error')
+  await sb.from('weeks').upsert({week_number:parseInt(wk),status:'open',deadline:dl||null},{onConflict:'week_number'})
+  await loadCurrentWeek(); showToast(`✅ Semana ${wk} abierta`)
+}
+
+async function adminCloseWeek() {
+  const wk = document.getElementById('admin-week-num').value
+  if (!wk) return showToast('Selecciona una semana','error')
+  await sb.from('weeks').upsert({week_number:parseInt(wk),status:'closed'},{onConflict:'week_number'})
+  showToast(`🔒 Semana ${wk} cerrada`)
+}
+
+async function fetchNFLResults() {
+  const wk = document.getElementById('admin-results-week').value
+  if (!wk) return showToast('Selecciona una semana','error')
+  const list = document.getElementById('results-list')
+  list.innerHTML = '<div class="loader"><div class="spinner"></div></div>'
+  try {
+    const res = await fetch(`${ESPN_API}?seasontype=2&week=${wk}`)
+    const json = await res.json()
+    liveResults = {}
+    let html = ''
+    for (const ev of (json.events || [])) {
+      const c = ev.competitions?.[0]; if (!c) continue
+      const home = c.competitors.find(t => t.homeAway==='home')
+      const away = c.competitors.find(t => t.homeAway==='away')
+      const done = c.status?.type?.completed
+      const hA = home.team.abbreviation, aA = away.team.abbreviation
+      const hS = parseInt(home.score||0), aS = parseInt(away.score||0)
+      if (done) {
+        liveResults[hA] = hS > aS ? 'win' : 'loss'
+        liveResults[aA] = aS > hS ? 'win' : 'loss'
+      }
+      const winner = done ? (hS > aS ? hA : aA) : null
+      html += `
+        <div class="result-row">
+          <span style="font-weight:700;font-size:12px">${aA} @ ${hA}</span>
+          <span style="font-size:11px;color:var(--muted)">${done ? `${aS}-${hS}` : 'Pendiente'}</span>
+          ${done ? `<span class="lboard-status s-alive" style="font-size:10px">✅ ${winner}</span>` : `<span class="lboard-status" style="background:#f3f4f6;color:var(--muted);font-size:10px">–</span>`}
+        </div>`
+    }
+    list.innerHTML = html || '<div class="empty-state"><div class="empty-text">Sin juegos</div></div>'
+  } catch(e) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-text">Error al cargar resultados</div></div>'
+  }
+}
+
+async function processEliminations() {
+  const wk = document.getElementById('admin-results-week').value
+  if (!wk || !Object.keys(liveResults).length) return showToast('Primero obtén los resultados','error')
+  const { data: picks } = await sb.from('picks').select('*').eq('week_number', parseInt(wk))
+  if (!picks?.length) return showToast('Sin picks esta semana','error')
+  let count = 0
+  for (const pick of picks) {
+    const result = liveResults[pick.team_abbr]
+    if (!result) continue
+    await sb.from('picks').update({result}).eq('id', pick.id)
+    if (result === 'loss') await sb.from('profiles').update({status:'eliminated'}).eq('id', pick.player_id)
+    count++
+  }
+  showToast(`⚡ ${count} picks procesados`); loadAdminPage()
+}
+
+async function revivePlayer(id) { await sb.from('profiles').update({status:'alive'}).eq('id',id); showToast('✅ Revivido'); loadAdminPage() }
+async function eliminatePlayer(id) { if(!confirm('¿Eliminar?')) return; await sb.from('profiles').update({status:'eliminated'}).eq('id',id); showToast('Eliminado'); loadAdminPage() }
+
+// ═══════════════ UTILS ════════════════════════════════════
+let toastTimer
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast')
+  t.textContent = msg; t.className = 'show ' + type
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className='', 3000)
+}
+</script>
+</body>
+</html>
