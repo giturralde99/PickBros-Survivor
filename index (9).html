@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PickBros Survivor</title>
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Black+Han+Sans&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #eef0f2; font-family: 'Inter', -apple-system, sans-serif; min-height: 100vh; color: #111; }
+
+    /* ── SCREENS ── */
+    .screen { display: none; }
+    .screen.active { display: block; }
+    #auth-screen.active { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #eef0f2; }
+
+    /* ── AUTH ── */
+    .auth-wrap { width: 100%; max-width: 360px; padding: 0 20px; }
+    .auth-logo { text-align: center; margin-bottom: 28px; }
+    .auth-logo-text { font-size: 28px; font-weight: 900; color: #111; letter-spacing: -1px; }
+    .auth-logo-text span { color: #D50A0A; }
+    .auth-logo-sub { font-size: 11px; font-weight: 700; color: #9ca3af; letter-spacing: 3px; text-transform: uppercase; margin-top: 10px; }
+    .auth-card { background: #fff; border-radius: 16px; padding: 24px; }
+    .auth-tabs { display: flex; background: #f3f4f6; border-radius: 8px; padding: 3px; margin-bottom: 20px; }
+    .auth-tab { flex: 1; padding: 8px; border: none; background: transparent; font-size: 13px; font-weight: 700; color: #9ca3af; border-radius: 6px; cursor: pointer; }
+    .auth-tab.active { background: #fff; color: #111; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .field input { width: 100%; border: 1.5px solid #e5e7eb; border-radius: 10px; padding: 11px 14px; font-size: 14px; color: #111; outline: none; background: #fafafa; }
+    .field input:focus { border-color: #013369; background: #fff; }
+    .btn-submit { width: 100%; padding: 13px; background: #ff6b35; border: none; border-radius: 10px; font-size: 15px; font-weight: 800; color: #fff; cursor: pointer; margin-top: 4px; }
+    .auth-msg { font-size: 12px; color: #6b7280; text-align: center; margin-top: 10px; }
+    .auth-msg.error { color: #D50A0A; }
+    .auth-msg.success { color: #16a34a; }
+
+    /* ── TOP NAV ── */
+    .top-nav { background: rgba(255,255,255,.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid rgba(0,0,0,.06); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 200; }
+    .top-nav-logo { font-size: 16px; font-weight: 900; color: #fff; letter-spacing: -.5px; }
+    .top-nav-logo span { color: #D50A0A; }
+    .top-nav-right { display: flex; align-items: center; gap: 10px; }
+    .nav-avatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.08); color: #6b7280; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .logout-btn { font-size: 11px; font-weight: 700; color: #9ca3af; background: rgba(0,0,0,.04); border: 1px solid rgba(0,0,0,.08); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+
+    /* ── TAB BAR (estilo NFL app) ── */
+    .tab-bar { background: rgba(255,255,255,.82); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid #e5e7eb; display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-item { flex: 1; min-width: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 8px 8px; font-size: 11px; font-weight: 700; color: #9ca3af; border: none; background: transparent; cursor: pointer; border-bottom: 3px solid transparent; gap: 3px; white-space: nowrap; }
+    .tab-item.active { color: #013369; border-bottom-color: #D50A0A; }
+    .tab-icon { font-size: 18px; }
+
+    /* ── MAIN ── */
+    .main { padding: 14px 12px 110px; max-width: 600px; margin: 0 auto; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── SECTION HEADER (estilo "Recently Completed") ── */
+    .section-header { font-size: 18px; font-weight: 800; color: #111; margin: 16px 0 10px; letter-spacing: -.3px; }
+
+    /* ── GAME CARD — split color exacto como NFL app ── */
+    .game-card { border-radius: 12px; overflow: hidden; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.10); }
+    .game-split { display: flex; height: 88px; }
+    .team-side { flex: 1; display: flex; align-items: center; padding: 0 14px; gap: 10px; position: relative; }
+    .team-side.away { flex-direction: row; }
+    .team-side.home { flex-direction: row-reverse; }
+    .t-logo { width: 44px; height: 44px; object-fit: contain; flex-shrink: 0; }
+    .t-info { display: flex; flex-direction: column; }
+    .team-side.home .t-info { align-items: flex-end; }
+    .t-abbr { font-size: 15px; font-weight: 900; color: #fff; letter-spacing: .5px; text-shadow: 0 1px 3px rgba(0,0,0,.3); }
+    .t-record { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.65); }
+    .t-score { font-size: 36px; font-weight: 900; color: #fff; line-height: 1; margin: 0 10px; text-shadow: 0 1px 4px rgba(0,0,0,.25); }
+    .t-score.dim { color: rgba(255,255,255,.38); }
+    .split-divider { width: 1px; background: rgba(255,255,255,.18); flex-shrink: 0; }
+    .game-footer { background: rgba(15,15,20,.88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; padding: 7px 14px; gap: 10px; }
+    .gf-final { font-size: 11px; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: .5px; }
+    .gf-sep { width: 1px; height: 12px; background: rgba(255,255,255,.2); }
+    .gf-date { font-size: 11px; color: rgba(255,255,255,.45); font-weight: 600; }
+    .gf-badge { margin-left: auto; font-size: 10px; font-weight: 700; color: #f59e0b; background: rgba(245,158,11,.12); padding: 3px 8px; border-radius: 20px; }
+
+    /* ── STAT CARDS (3 en fila) ── */
+    .stats-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+    .stat-card { background: rgba(255,255,255,.72); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.5); border-radius: 12px; padding: 14px 10px; text-align: center; }
+    .stat-n { font-size: 28px; font-weight: 900; color: #013369; line-height: 1; }
+    .stat-l { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .5px; margin-top: 3px; }
+
+    /* ── MI PICK CARD ── */
+    .pick-card { background: rgba(255,255,255,.75); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.5); border-radius: 12px; overflow: hidden; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+    .pick-card-header { background: #013369; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; }
+    .pick-card-week { font-size: 11px; font-weight: 800; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: 1px; }
+    .pick-card-deadline { font-size: 11px; font-weight: 700; color: #f59e0b; }
+    .pick-card-body { padding: 16px; }
+    .pick-prompt { font-size: 12px; font-weight: 600; color: #9ca3af; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+
+    /* confirmed pick */
+    .confirmed-row { display: flex; align-items: center; gap: 14px; }
+    .conf-logo { width: 56px; height: 56px; object-fit: contain; }
+    .conf-name { font-size: 20px; font-weight: 900; color: #111; }
+    .conf-result { font-size: 12px; font-weight: 700; margin-top: 3px; }
+    .conf-result.win { color: #16a34a; }
+    .conf-result.loss { color: #D50A0A; }
+    .conf-result.pending { color: #9ca3af; }
+    .change-btn { margin-left: auto; font-size: 12px; font-weight: 700; color: #6b7280; background: #f3f4f6; border: none; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+
+    /* ── TEAM PICKER GRID ── */
+    .team-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+    @media(min-width:420px){ .team-grid { grid-template-columns: repeat(5,1fr); } }
+    @media(min-width:520px){ .team-grid { grid-template-columns: repeat(6,1fr); } }
+    .t-btn { background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 10px; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; transition: border-color .15s, background .15s; }
+    .t-btn:active { transform: scale(.96); }
+    .t-btn.selected { border-color: #013369; background: rgba(1,51,105,.06); }
+    .t-btn.used { opacity: .25; cursor: not-allowed; filter: grayscale(1); }
+    .t-btn img { width: 32px; height: 32px; object-fit: contain; }
+    .t-btn-label { font-size: 9px; font-weight: 800; color: #9ca3af; letter-spacing: .3px; }
+    .t-btn.selected .t-btn-label { color: #013369; }
+    .confirm-btn { width: 100%; margin-top: 14px; padding: 14px; background: #013369; border: none; border-radius: 10px; font-size: 15px; font-weight: 800; color: #fff; cursor: pointer; letter-spacing: -.2px; }
+    .confirm-btn:active { background: #012a55; }
+
+    /* ── LEADERBOARD ── */
+    .lboard-wrap { background: rgba(255,255,255,.75); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.4); border-radius: 12px; overflow: hidden; }
+    .lboard-row { display: flex; align-items: center; padding: 11px 14px; gap: 10px; border-bottom: 1px solid #f3f4f6; }
+    .lboard-row:last-child { border-bottom: none; }
+    .lb-rank { font-size: 15px; font-weight: 900; color: #d1d5db; min-width: 24px; text-align: center; }
+    .lb-rank.r1 { color: #D4A017; }
+    .lb-rank.r2 { color: #9ca3af; }
+    .lb-rank.r3 { color: #cd7f32; }
+    .lb-name { font-size: 14px; font-weight: 700; flex: 1; }
+    .lb-chips { display: flex; gap: 3px; flex-wrap: wrap; }
+    .chip { min-width: 26px; height: 26px; border-radius: 6px; font-size: 8px; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 4px; letter-spacing: .3px; }
+    .chip.w { background: rgba(22,163,74,.12); color: #16a34a; }
+    .chip.l { background: rgba(213,10,10,.1); color: #D50A0A; }
+    .chip.p { background: rgba(245,158,11,.1); color: #b45309; }
+    .lb-status { font-size: 10px; font-weight: 800; padding: 4px 9px; border-radius: 20px; flex-shrink: 0; text-transform: uppercase; letter-spacing: .3px; }
+    .s-alive { background: rgba(22,163,74,.1); color: #16a34a; }
+    .s-dead { background: rgba(213,10,10,.08); color: #D50A0A; }
+
+    /* ── HISTORY ── */
+    .hist-list { display: grid; gap: 8px; }
+    .hist-row { background: rgba(255,255,255,.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.4); border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+    .hist-wk { font-size: 11px; font-weight: 800; color: #9ca3af; min-width: 38px; text-transform: uppercase; }
+    .hist-team { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .hist-team img { width: 30px; height: 30px; object-fit: contain; }
+    .hist-team-name { font-size: 14px; font-weight: 700; }
+    .hist-result { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: .3px; }
+    .hr-w { background: rgba(22,163,74,.1); color: #16a34a; }
+    .hr-l { background: rgba(213,10,10,.08); color: #D50A0A; }
+    .hr-p { background: rgba(245,158,11,.1); color: #b45309; }
+
+    /* ── ADMIN ── */
+    .admin-block { background: rgba(255,255,255,.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.4); border-radius: 12px; padding: 16px; margin-bottom: 10px; }
+    .admin-block-title { font-size: 14px; font-weight: 800; margin-bottom: 14px; color: #111; }
+    .a-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+    .a-input { width: 100%; background: #f9fafb; border: 1.5px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; font-size: 13px; color: #111; outline: none; margin-bottom: 10px; }
+    .a-input:focus { border-color: #013369; }
+    .a-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .a-btn { padding: 11px; border: none; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; width: 100%; }
+    .a-btn-primary { background: #013369; color: #fff; }
+    .a-btn-secondary { background: #f3f4f6; color: #111; border: 1.5px solid #e5e7eb; }
+    .a-btn-red { background: #D50A0A; color: #fff; }
+    .results-list { display: grid; gap: 6px; max-height: 260px; overflow-y: auto; }
+    .result-row { display: flex; align-items: center; justify-content: space-between; background: #f9fafb; border-radius: 8px; padding: 8px 12px; font-size: 12px; gap: 8px; flex-wrap: wrap; }
+    .admin-players { display: grid; gap: 6px; }
+    .admin-p-row { display: flex; align-items: center; background: #f9fafb; border-radius: 8px; padding: 10px 12px; gap: 10px; }
+    .btn-sm-red { font-size: 11px; font-weight: 700; color: #D50A0A; background: rgba(213,10,10,.08); border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+    .btn-sm-green { font-size: 11px; font-weight: 700; color: #16a34a; background: rgba(22,163,74,.1); border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+
+    /* ── EMPTY / LOADER ── */
+    .loader { text-align: center; padding: 40px; color: #9ca3af; }
+    .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid #e5e7eb; border-top-color: #013369; border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { text-align: center; padding: 40px 20px; }
+    .empty-icon { font-size: 2.5rem; opacity: .3; margin-bottom: 10px; }
+    .empty-txt { font-size: 13px; color: #9ca3af; font-weight: 600; }
+
+    /* ── ELIMINATED ── */
+    .elim-card { background: #fff; border-radius: 12px; padding: 36px 20px; text-align: center; }
+    .elim-icon { font-size: 3rem; margin-bottom: 12px; }
+    .elim-title { font-size: 22px; font-weight: 900; color: #D50A0A; margin-bottom: 8px; }
+    .elim-sub { font-size: 13px; color: #9ca3af; font-weight: 600; }
+
+    /* ── TOAST ── */
+    #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(16px); background: #1c1c1e; color: #fff; font-size: 13px; font-weight: 700; padding: 11px 22px; border-radius: 30px; opacity: 0; transition: all .25s; z-index: 999; white-space: nowrap; pointer-events: none; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.error { background: #D50A0A; }
+    #toast.success { background: #16a34a; }
+
+    /* ── BOTTOM TAB BAR (fija abajo) ── */
+    .bottom-tabs-wrap { position: fixed; bottom: 0; left: 0; right: 0; padding: 0 16px 20px; padding-bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 200; pointer-events: none; }
+    .bottom-tabs { background: rgba(30,30,35,.88); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); border: 1px solid rgba(255,255,255,.12); border-radius: 28px; display: flex; padding: 6px; pointer-events: all; box-shadow: 0 8px 32px rgba(0,0,0,.25); }
+    .b-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 4px 6px; font-size: 10px; font-weight: 700; color: rgba(255,255,255,.4); border: none; background: transparent; cursor: pointer; gap: 3px; border-radius: 22px; transition: all .2s; }
+    .b-tab.active { color: #fff; background: rgba(255,255,255,.15); }
+    .b-tab-icon { font-size: 20px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ AUTH ═══ -->
+<div id="auth-screen" class="screen">
+  <div class="auth-blob"></div>
+<div class="auth-wrap">
+    <div class="auth-logo">
+            <div style="display:flex;justify-content:center;">
+        <svg style="width:240px;height:auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 621.27 119.02">
+          <defs><style>.al0{fill:#ff6b35}.al1{fill:#111;font-family:BlackHanSans-Regular,"Black Han Sans";font-size:120.46px;isolation:isolate}</style></defs>
+          <text class="al1" transform="translate(0 95.16)"><tspan x="0" y="0">PICK</tspan></text>
+          <g>
+            <path class="al0" d="M341.2,47.34v-.85c4.02-1.12,7.19-3.43,9.52-6.92,2.33-3.5,3.49-8.49,3.49-15s-1.85-11.32-5.54-14.7c-3.7-3.37-9.88-5.06-18.55-5.06h-46.86v90.35h51.92c8.03,0,13.95-2.19,17.77-6.56,3.81-4.38,5.72-10.18,5.72-17.41,0-13.89-5.83-21.84-17.47-23.85ZM312.17,24.57h9.15c3.54,0,5.3,2.25,5.3,6.75s-1.84,6.74-5.54,6.74h-8.91v-13.49ZM323.25,73.96h-11.08v-14.82h11.32c3.94,0,5.91,2.45,5.91,7.35s-2.05,7.47-6.15,7.47Z"/>
+            <path class="al0" d="M431.91,65.05c8.99-4.58,13.49-14.1,13.49-28.55,0-21.12-10.36-31.69-31.08-31.69h-45.54v90.35h28.92v-26.86h6.26l11.81,26.86h31.8l-15.66-30.11ZM414.32,39.99c0,2.57-.78,4.22-2.35,4.94-1.57.72-4.12,1.08-7.65,1.08h-6.62v-18.07h6.62c3.53,0,6.08.36,7.65,1.09,1.57.72,2.35,2.37,2.35,4.94v6.02Z"/>
+            <path class="al0" d="M536.53,28.73c-1.41-5.99-3.78-10.91-7.11-14.76-3.33-3.86-7.71-6.7-13.13-8.55-5.42-1.85-12.19-2.77-20.3-2.77s-14.78.92-20.24,2.77c-5.46,1.85-9.86,4.69-13.19,8.55-3.33,3.85-5.7,8.77-7.1,14.76-1.41,5.98-2.11,13.11-2.11,21.38s.64,14.75,1.92,20.66c1.29,5.9,3.56,10.82,6.81,14.75,3.25,3.94,7.63,6.89,13.13,8.86,5.5,1.96,12.43,2.95,20.78,2.95s15.28-.99,20.78-2.95c5.5-1.97,9.88-4.92,13.13-8.86,3.25-3.93,5.52-8.85,6.81-14.75,1.28-5.91,1.92-12.79,1.92-20.66,0-8.27-.7-15.4-2.1-21.38ZM511.16,62.99c-4.92,4.93-9.83,8.09-14.46,10.05-5.05,2.16-9.77,2.87-13.78,2.87-4.39,0-7.93-.84-10.16-1.57-1.55-.51-2.77-1.73-3.28-3.28-2-6.15-4.89-22.17,11.34-38.41,16.24-16.24,32.27-13.34,38.41-11.35,1.55.51,2.77,1.73,3.27,3.28h.01c1.98,6.15,4.88,22.17-11.35,38.41ZM496.89,24.19l22.73,22.74c1.32-3.34,1.99-6.48,2.25-9.35l-15.64-15.64c-2.87.26-6.01.93-9.34,2.25ZM504.68,40.6l1.43-1.44c.41-.4.41-1.07,0-1.48-.4-.4-1.07-.4-1.47,0l-1.44,1.44-2.15-2.15c-.41-.41-1.06-.41-1.47,0-.4.4-.4,1.06,0,1.46l2.15,2.16-2.14,2.14-2.15-2.15c-.41-.41-1.06-.41-1.47,0-.4.4-.4,1.06,0,1.47l2.15,2.16-2.14,2.13-2.15-2.16c-.41-.4-1.06-.4-1.48,0-.4.42-.4,1.08,0,1.48l2.16,2.15-2.14,2.15-2.15-2.16c-.42-.4-1.07-.4-1.48,0-.4.41-.4,1.07,0,1.47l2.16,2.15-2.15,2.15-2.15-2.16c-.41-.4-1.06-.4-1.47,0-.4.41-.4,1.06,0,1.47l2.16,2.15-1.44,1.44c-.4.4-.4,1.07,0,1.48.21.19.47.3.74.3s.53-.11.74-.3l1.43-1.44,2.16,2.15c.19.21.45.3.72.3s.54-.09.74-.3c.41-.4.41-1.06,0-1.46l-2.15-2.16,2.14-2.14,2.16,2.15c.19.2.47.31.73.31s.54-.11.73-.31c.41-.4.41-1.06,0-1.47l-2.14-2.15,2.13-2.14,2.16,2.15c.2.2.47.31.73.31s.53-.11.74-.31c.41-.41.41-1.07,0-1.47l-2.15-2.16,2.14-2.13,2.14,2.15c.21.2.47.31.74.31s.53-.11.74-.31c.41-.41.41-1.07,0-1.47l-2.15-2.15,2.14-2.15,2.15,2.16c.2.19.46.3.73.3s.54-.11.74-.3c.41-.41.41-1.06,0-1.47l-2.15-2.15ZM470.13,58.05l15.63,15.63c2.87-.26,6.01-.92,9.35-2.24l-22.74-22.74c-1.32,3.34-1.98,6.48-2.24,9.35Z"/>
+            <path class="al0" d="M619.65,53.6c-1.09-3.29-2.94-6.14-5.55-8.55-2.61-2.41-6.04-4.36-10.3-5.84-4.25-1.49-9.55-2.55-15.9-3.2l-10.36-.96v-7.11c3.78-.48,8.36-.72,13.74-.72s12.56.72,21.56,2.17l3.61-23.13c-10.36-2.41-21.92-3.61-34.69-3.61-6.43,0-11.86.52-16.32,1.56-4.46,1.05-8.09,2.83-10.9,5.36-2.82,2.53-4.86,5.87-6.15,10-1.28,4.14-1.93,9.3-1.93,15.48,0,4.5.51,8.41,1.51,11.75,1,3.33,2.69,6.18,5.06,8.55,2.37,2.37,5.52,4.23,9.46,5.6,3.93,1.37,8.83,2.33,14.69,2.89l13.01,1.08v7.23c-2.17.32-4.64.54-7.41.66-2.77.13-5.96.19-9.57.19-7.15,0-15.14-1.09-23.97-3.26l-4.1,23.85c5.38,1.21,10.96,2.13,16.74,2.78,5.79.64,11.81.96,18.07.96,2.49,0,5.28-.06,8.37-.18,3.1-.12,6.17-.42,9.22-.91,3.05-.48,5.94-1.22,8.67-2.22,2.73-1.01,5.02-2.39,6.87-4.16,2.25-2.17,4.17-5.34,5.78-9.52,1.61-4.17,2.41-9.31,2.41-15.42,0-4.25-.54-8.02-1.62-11.32Z"/>
+          </g>
+        </svg>
+      </div>
+      <div class="auth-logo-sub">NFL Survivor 2026</div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login',this)">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('signup',this)">Sign Up</button>
+      </div>
+      <div id="login-form">
+        <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="your@email.com" /></div>
+        <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••" /></div>
+        <button class="btn-submit" onclick="doLogin()">Sign In</button>
+      </div>
+      <div id="signup-form" style="display:none">
+        <div class="field"><label>Name</label><input type="text" id="signup-name" placeholder="Your name or nickname" /></div>
+        <div class="field"><label>Email</label><input type="email" id="signup-email" placeholder="your@email.com" /></div>
+        <div class="field"><label>Password</label><input type="password" id="signup-pass" placeholder="••••••••" /></div>
+        <button class="btn-submit" onclick="doSignup()">Crear cuenta</button>
+      </div>
+      <p class="auth-msg" id="auth-msg"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app-screen" class="screen">
+
+  <div class="top-nav">
+    <div class="top-nav-logo">
+      <svg style="width:130px;height:auto;vertical-align:middle" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 621.27 119.02">
+        <defs><style>.L0{fill:#ff6b35}.L1{fill:#111;font-family:BlackHanSans-Regular,"Black Han Sans";font-size:120.46px;isolation:isolate}</style></defs>
+        <text class="L1" transform="translate(0 95.16)"><tspan x="0" y="0">PICK</tspan></text>
+        <g><path class="L0" d="M341.2,47.34v-.85c4.02-1.12,7.19-3.43,9.52-6.92,2.33-3.5,3.49-8.49,3.49-15s-1.85-11.32-5.54-14.7c-3.7-3.37-9.88-5.06-18.55-5.06h-46.86v90.35h51.92c8.03,0,13.95-2.19,17.77-6.56,3.81-4.38,5.72-10.18,5.72-17.41,0-13.89-5.83-21.84-17.47-23.85ZM312.17,24.57h9.15c3.54,0,5.3,2.25,5.3,6.75s-1.84,6.74-5.54,6.74h-8.91v-13.49ZM323.25,73.96h-11.08v-14.82h11.32c3.94,0,5.91,2.45,5.91,7.35s-2.05,7.47-6.15,7.47Z"/><path class="L0" d="M431.91,65.05c8.99-4.58,13.49-14.1,13.49-28.55,0-21.12-10.36-31.69-31.08-31.69h-45.54v90.35h28.92v-26.86h6.26l11.81,26.86h31.8l-15.66-30.11ZM414.32,39.99c0,2.57-.78,4.22-2.35,4.94-1.57.72-4.12,1.08-7.65,1.08h-6.62v-18.07h6.62c3.53,0,6.08.36,7.65,1.09,1.57.72,2.35,2.37,2.35,4.94v6.02Z"/><path class="L0" d="M536.53,28.73c-1.41-5.99-3.78-10.91-7.11-14.76-3.33-3.86-7.71-6.7-13.13-8.55-5.42-1.85-12.19-2.77-20.3-2.77s-14.78.92-20.24,2.77c-5.46,1.85-9.86,4.69-13.19,8.55-3.33,3.85-5.7,8.77-7.1,14.76-1.41,5.98-2.11,13.11-2.11,21.38s.64,14.75,1.92,20.66c1.29,5.9,3.56,10.82,6.81,14.75,3.25,3.94,7.63,6.89,13.13,8.86,5.5,1.96,12.43,2.95,20.78,2.95s15.28-.99,20.78-2.95c5.5-1.97,9.88-4.92,13.13-8.86,3.25-3.93,5.52-8.85,6.81-14.75,1.28-5.91,1.92-12.79,1.92-20.66,0-8.27-.7-15.4-2.1-21.38ZM511.16,62.99c-4.92,4.93-9.83,8.09-14.46,10.05-5.05,2.16-9.77,2.87-13.78,2.87-4.39,0-7.93-.84-10.16-1.57-1.55-.51-2.77-1.73-3.28-3.28-2-6.15-4.89-22.17,11.34-38.41,16.24-16.24,32.27-13.34,38.41-11.35,1.55.51,2.77,1.73,3.27,3.28h.01c1.98,6.15,4.88,22.17-11.35,38.41ZM496.89,24.19l22.73,22.74c1.32-3.34,1.99-6.48,2.25-9.35l-15.64-15.64c-2.87.26-6.01.93-9.34,2.25ZM504.68,40.6l1.43-1.44c.41-.4.41-1.07,0-1.48-.4-.4-1.07-.4-1.47,0l-1.44,1.44-2.15-2.15c-.41-.41-1.06-.41-1.47,0-.4.4-.4,1.06,0,1.46l2.15,2.16-2.14,2.14-2.15-2.15c-.41-.41-1.06-.41-1.47,0-.4.4-.4,1.06,0,1.47l2.15,2.16-2.14,2.13-2.15-2.16c-.41-.4-1.06-.4-1.48,0-.4.42-.4,1.08,0,1.48l2.16,2.15-2.14,2.15-2.15-2.16c-.42-.4-1.07-.4-1.48,0-.4.41-.4,1.07,0,1.47l2.16,2.15-2.15,2.15-2.15-2.16c-.41-.4-1.06-.4-1.47,0-.4.41-.4,1.06,0,1.47l2.16,2.15-1.44,1.44c-.4.4-.4,1.07,0,1.48.21.19.47.3.74.3s.53-.11.74-.3l1.43-1.44,2.16,2.15c.19.21.45.3.72.3s.54-.09.74-.3c.41-.4.41-1.06,0-1.46l-2.15-2.16,2.14-2.14,2.16,2.15c.19.2.47.31.73.31s.54-.11.73-.31c.41-.4.41-1.06,0-1.47l-2.14-2.15,2.13-2.14,2.16,2.15c.2.2.47.31.73.31s.53-.11.74-.31c.41-.41.41-1.07,0-1.47l-2.15-2.16,2.14-2.13,2.14,2.15c.21.2.47.31.74.31s.53-.11.74-.31c.41-.41.41-1.07,0-1.47l-2.15-2.15,2.14-2.15,2.15,2.16c.2.19.46.3.73.3s.54-.11.74-.3c.41-.41.41-1.06,0-1.47l-2.15-2.15ZM470.13,58.05l15.63,15.63c2.87-.26,6.01-.92,9.35-2.24l-22.74-22.74c-1.32,3.34-1.98,6.48-2.24,9.35Z"/><path class="L0" d="M619.65,53.6c-1.09-3.29-2.94-6.14-5.55-8.55-2.61-2.41-6.04-4.36-10.3-5.84-4.25-1.49-9.55-2.55-15.9-3.2l-10.36-.96v-7.11c3.78-.48,8.36-.72,13.74-.72s12.56.72,21.56,2.17l3.61-23.13c-10.36-2.41-21.92-3.61-34.69-3.61-6.43,0-11.86.52-16.32,1.56-4.46,1.05-8.09,2.83-10.9,5.36-2.82,2.53-4.86,5.87-6.15,10-1.28,4.14-1.93,9.3-1.93,15.48,0,4.5.51,8.41,1.51,11.75,1,3.33,2.69,6.18,5.06,8.55,2.37,2.37,5.52,4.23,9.46,5.6,3.93,1.37,8.83,2.33,14.69,2.89l13.01,1.08v7.23c-2.17.32-4.64.54-7.41.66-2.77.13-5.96.19-9.57.19-7.15,0-15.14-1.09-23.97-3.26l-4.1,23.85c5.38,1.21,10.96,2.13,16.74,2.78,5.79.64,11.81.96,18.07.96,2.49,0,5.28-.06,8.37-.18,3.1-.12,6.17-.42,9.22-.91,3.05-.48,5.94-1.22,8.67-2.22,2.73-1.01,5.02-2.39,6.87-4.16,2.25-2.17,4.17-5.34,5.78-9.52,1.61-4.17,2.41-9.31,2.41-15.42,0-4.25-.54-8.02-1.62-11.32Z"/></g>
+      </svg>
+    </div>
+    <div class="top-nav-right">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <button class="logout-btn" onclick="doLogout()">Salir</button>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tab-bar" style="display:none">
+    <button class="tab-item active" onclick="showPage('picks',0)">
+      <span class="tab-icon">🏈</span>My Pick
+    </button>
+    <button class="tab-item" onclick="showPage('leaderboard',1)">
+      <span class="tab-icon">🏆</span>Ranking
+    </button>
+    <button class="tab-item" onclick="showPage('history',2)">
+      <span class="tab-icon">📋</span>History
+    </button>
+    <button class="tab-item" id="admin-tab" style="display:none" onclick="showPage('admin',3)">
+      <span class="tab-icon">⚙️</span>Admin
+    </button>
+  </div>
+
+  <div class="main">
+
+    <!-- PICKS -->
+    <div class="page active" id="page-picks">
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-n" id="stat-alive">–</div><div class="stat-l">Alive</div></div>
+        <div class="stat-card"><div class="stat-n" id="stat-total">–</div><div class="stat-l">Players</div></div>
+        <div class="stat-card"><div class="stat-n" id="stat-week">–</div><div class="stat-l">Week</div></div>
+      </div>
+      <div id="picks-content"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div class="page" id="page-leaderboard">
+      <div class="section-header">Ranking</div>
+      <div id="leaderboard-content"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="page" id="page-history">
+      <div class="section-header">My Picks</div>
+      <div id="history-content"><div class="loader"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- ADMIN -->
+    <div class="page" id="page-admin">
+      <div class="section-header">Admin</div>
+      <div class="admin-block">
+        <div class="admin-block-title">Manage Week</div>
+        <div class="a-label">Week NFL</div>
+        <select class="a-input" id="admin-week-num"></select>
+        <div class="a-label">Deadline</div>
+        <input type="datetime-local" class="a-input" id="admin-deadline" />
+        <div class="a-row">
+          <button class="a-btn a-btn-primary" onclick="adminOpenWeek()">Open</button>
+          <button class="a-btn a-btn-secondary" onclick="adminCloseWeek()">Close</button>
+        </div>
+      </div>
+      <div class="admin-block">
+        <div class="admin-block-title">NFL Results</div>
+        <div class="a-label">Week</div>
+        <select class="a-input" id="admin-results-week"></select>
+        <button class="a-btn a-btn-secondary" style="margin-bottom:10px" onclick="fetchNFLResults()">↻ Fetch from ESPN</button>
+        <div id="results-list" class="results-list"></div>
+        <button class="a-btn a-btn-red" style="margin-top:10px" onclick="processEliminations()">⚡ Process Eliminations</button>
+      </div>
+      <div class="admin-block">
+        <div class="admin-block-title">Players</div>
+        <div id="admin-players-list"><div class="loader"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-tabs-wrap">
+    <div class="bottom-tabs">
+      <button class="b-tab active" id="btab-picks" onclick="showPage('picks',0)">
+        <span class="b-tab-icon">🏈</span>My Pick
+      </button>
+      <button class="b-tab" id="btab-leaderboard" onclick="showPage('leaderboard',1)">
+        <span class="b-tab-icon">🏆</span>Ranking
+      </button>
+      <button class="b-tab" id="btab-history" onclick="showPage('history',2)">
+        <span class="b-tab-icon">📋</span>History
+      </button>
+      <button class="b-tab" id="btab-admin" style="display:none" onclick="showPage('admin',3)">
+        <span class="b-tab-icon">⚙️</span>Admin
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://xdjbcnpligtdjfbqwlvi.supabase.co'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkamJjbnBsaWd0ZGpmYnF3bHZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyNTEwMzEsImV4cCI6MjA5NzgyNzAzMX0.MAXOepSGoUTjvPzznUhyWTN1pGT3KUlpFl-94PKenBg'
+const ADMIN_EMAILS = ['giturralde99@gmail.com']
+const ESPN_API = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard'
+
+const TEAM_COLORS = {
+  ARI:'#97233F',ATL:'#A71930',BAL:'#241773',BUF:'#00338D',
+  CAR:'#0085CA',CHI:'#0B162A',CIN:'#FB4F14',CLE:'#311D00',
+  DAL:'#003594',DEN:'#FB4F14',DET:'#0076B6',GB:'#203731',
+  HOU:'#03202F',IND:'#002C5F',JAX:'#006778',KC:'#E31837',
+  LAC:'#0080C6',LAR:'#003594',LV:'#222222',MIA:'#008E97',
+  MIN:'#4F2683',NE:'#002244',NO:'#9B8B5A',NYG:'#0B2265',
+  NYJ:'#125740',PHI:'#004C54',PIT:'#FFB612',SF:'#AA0000',
+  SEA:'#002244',TB:'#D50A0A',TEN:'#4B92DB',WAS:'#5A1414',
+}
+
+const NFL_TEAMS = [
+  {abbr:'ARI',name:'Cardinals'},{abbr:'ATL',name:'Falcons'},{abbr:'BAL',name:'Ravens'},
+  {abbr:'BUF',name:'Bills'},{abbr:'CAR',name:'Panthers'},{abbr:'CHI',name:'Bears'},
+  {abbr:'CIN',name:'Bengals'},{abbr:'CLE',name:'Browns'},{abbr:'DAL',name:'Cowboys'},
+  {abbr:'DEN',name:'Broncos'},{abbr:'DET',name:'Lions'},{abbr:'GB',name:'Packers'},
+  {abbr:'HOU',name:'Texans'},{abbr:'IND',name:'Colts'},{abbr:'JAX',name:'Jaguars'},
+  {abbr:'KC',name:'Chiefs'},{abbr:'LAC',name:'Chargers'},{abbr:'LAR',name:'Rams'},
+  {abbr:'LV',name:'Raiders'},{abbr:'MIA',name:'Dolphins'},{abbr:'MIN',name:'Vikings'},
+  {abbr:'NE',name:'Patriots'},{abbr:'NO',name:'Saints'},{abbr:'NYG',name:'Giants'},
+  {abbr:'NYJ',name:'Jets'},{abbr:'PHI',name:'Eagles'},{abbr:'PIT',name:'Steelers'},
+  {abbr:'SF',name:'49ers'},{abbr:'SEA',name:'Seahawks'},{abbr:'TB',name:'Buccaneers'},
+  {abbr:'TEN',name:'Titans'},{abbr:'WAS',name:'Commanders'},
+]
+
+const logo = a => `https://a.espncdn.com/i/teamlogos/nfl/500/${a.toLowerCase()}.png`
+let sb, currentUser=null, currentProfile=null, currentWeek=null, myPicks=[], liveResults={}
+
+async function bootApp() {
+  try {
+    const { createClient } = supabase
+    sb = createClient(SUPABASE_URL, SUPABASE_KEY)
+    populateWeekSelects()
+    const { data, error } = await sb.auth.getSession()
+    if (error || !data.session) {
+      localStorage.clear()
+      showScreen('auth')
+      return
+    }
+    await initApp(data.session.user)
+  } catch(e) {
+    console.error('Boot error:', e)
+    localStorage.clear()
+    showScreen('auth')
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootApp)
+} else {
+  bootApp()
+}
+
+sb.auth.onAuthStateChange(async (e,session) => {
+  if (e==='SIGNED_IN' && session) await initApp(session.user)
+  else if (e==='SIGNED_OUT') showScreen('auth')
+})
+
+async function initApp(user) {
+  try {
+    currentUser = user
+    const { data:profile } = await sb.from('profiles').select('*').eq('id',user.id).maybeSingle()
+    currentProfile = profile
+    // Auto-create profile if missing
+    if (!profile) {
+      await sb.from('profiles').insert({id:user.id, email:user.email, username:user.email.split('@')[0], status:'alive', streak:0})
+      const { data:p2 } = await sb.from('profiles').select('*').eq('id',user.id).maybeSingle()
+      currentProfile = p2
+    }
+    document.getElementById('nav-avatar').textContent = (currentProfile?.username||user.email)[0].toUpperCase()
+    if (ADMIN_EMAILS.includes(user.email)) {
+      document.getElementById('admin-tab').style.display='flex'
+      document.getElementById('btab-admin').style.display='flex'
+    }
+    showScreen('app')
+    await loadCurrentWeek()
+    await loadPicksPage()
+  } catch(err) {
+    console.error('initApp error:', err)
+    showScreen('app')
+    await loadPicksPage()
+  }
+}
+
+function showScreen(n) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'))
+  document.getElementById(n+'-screen').classList.add('active')
+}
+
+function showPage(name, idx) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'))
+  document.getElementById('page-'+name).classList.add('active')
+  document.querySelectorAll('.b-tab').forEach(t=>t.classList.remove('active'))
+  const activeTab = document.getElementById('btab-'+name)
+  if (activeTab) activeTab.classList.add('active')
+  if (name==='leaderboard') loadLeaderboard()
+  if (name==='history') loadHistory()
+  if (name==='admin') loadAdminPage()
+}
+
+function switchAuthTab(tab,btn) {
+  document.querySelectorAll('.auth-tab').forEach(t=>t.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('login-form').style.display = tab==='login'?'block':'none'
+  document.getElementById('signup-form').style.display = tab==='signup'?'block':'none'
+  document.getElementById('auth-msg').textContent=''
+}
+
+async function doLogin() {
+  const email=document.getElementById('login-email').value.trim()
+  const pass=document.getElementById('login-pass').value
+  setAuthMsg('Ingresando...')
+  const {error} = await sb.auth.signInWithPassword({email,password:pass})
+  if (error) setAuthMsg(error.message,true)
+}
+
+async function doSignup() {
+  const name=document.getElementById('signup-name').value.trim()
+  const email=document.getElementById('signup-email').value.trim()
+  const pass=document.getElementById('signup-pass').value
+  if(!name||!email||!pass) return setAuthMsg('Completa todos los campos',true)
+  setAuthMsg('Creando cuenta...')
+  const {data,error} = await sb.auth.signUp({email,password:pass})
+  if(error) return setAuthMsg(error.message,true)
+  if(data.user) {
+    await sb.from('profiles').upsert({id:data.user.id,username:name,email,status:'alive',streak:0})
+    setAuthMsg('✅ Revisa tu email para confirmar.',false)
+  }
+}
+
+async function doLogout() { await sb.auth.signOut(); localStorage.clear() }
+function setAuthMsg(msg,isError) {
+  const el=document.getElementById('auth-msg')
+  el.textContent=msg
+  el.className='auth-msg'+(isError===true?' error':isError===false?' success':'')
+}
+
+async function loadCurrentWeek() {
+  const {data} = await sb.from('weeks').select('*').eq('status','open').order('week_number',{ascending:false}).limit(1).maybeSingle()
+  currentWeek=data
+}
+
+let selectedTeam=null
+
+async function loadPicksPage() {
+  const c=document.getElementById('picks-content')
+  const {data:picks} = await sb.from('picks').select('*').eq('player_id',currentUser.id)
+  myPicks=picks||[]
+  const {data:players} = await sb.from('profiles').select('status')
+  const alive=players?.filter(p=>p.status==='alive').length||0
+  document.getElementById('stat-alive').textContent=alive
+  document.getElementById('stat-total').textContent=players?.length||0
+  document.getElementById('stat-week').textContent=currentWeek?.week_number||'–'
+
+  if (currentProfile?.status==='eliminated') {
+    c.innerHTML=`<div class="elim-card"><div class="elim-icon">💀</div><div class="elim-title">Eliminated</div><div class="elim-sub">Your pick was incorrect.<br>Follow along in the Ranking.</div></div>`
+    return
+  }
+  if (!currentWeek) {
+    // DEMO MODE — show picks UI with a fake week so admin can test
+    currentWeek = { week_number: 1, deadline: new Date(Date.now() + 86400000*3).toISOString(), status: 'open' }
+  }
+
+  const weekPick=myPicks.find(p=>p.week_number===currentWeek.week_number)
+  const usedTeams=myPicks.map(p=>p.team_abbr)
+  const deadlinePast=currentWeek.deadline?new Date()>new Date(currentWeek.deadline):false
+  const dlStr=currentWeek.deadline?new Date(currentWeek.deadline).toLocaleString('es-MX',{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'Por definir'
+
+  let html=`
+    <div class="pick-card">
+      <div class="pick-card-header">
+        <span class="pick-card-week">Week ${currentWeek.week_number}</span>
+        <span class="pick-card-deadline">⏱ ${dlStr}</span>
+      </div>
+      <div class="pick-card-body">`
+
+  if (weekPick) {
+    const team=NFL_TEAMS.find(t=>t.abbr===weekPick.team_abbr)
+    const resIcon=weekPick.result==='win'?'✅ Won':weekPick.result==='loss'?'❌ Lost':'⏳ Pending'
+    const resCls=weekPick.result==='win'?'win':weekPick.result==='loss'?'loss':'pending'
+    html+=`
+      <div class="pick-prompt">Your pick this week</div>
+      <div class="confirmed-row">
+        <img class="conf-logo" src="${logo(weekPick.team_abbr)}" onerror="this.style.display='none'" />
+        <div>
+          <div class="conf-name">${team?.name||weekPick.team_abbr}</div>
+          <div class="conf-result ${resCls}">${resIcon}</div>
+        </div>
+        ${!weekPick.result&&!deadlinePast?`<button class="change-btn" onclick="cancelPick(${weekPick.id})">Change</button>`:''}
+      </div>`
+  } else if (!deadlinePast) {
+    html+=`<div class="pick-prompt">Pick a team — no repeats this season</div>
+      <div class="team-grid" id="team-grid">`
+    NFL_TEAMS.forEach(t=>{
+      const used=usedTeams.includes(t.abbr)
+      html+=`<div class="t-btn ${used?'used':''}" id="tbtn-${t.abbr}" onclick="${used?'':` selectTeam('${t.abbr}')`}">
+        <img src="${logo(t.abbr)}" onerror="this.style.display='none'" />
+        <div class="t-btn-label">${t.abbr}</div>
+      </div>`
+    })
+    html+=`</div><button class="confirm-btn" id="confirm-btn" style="display:none" onclick="confirmPick()">Confirm Pick</button>`
+  } else {
+    html+=`<div class="empty"><div class="empty-icon">🔒</div><div class="empty-txt">El deadline pasó sin hacer pick.</div></div>`
+  }
+
+  html+=`</div></div>`
+
+  // Recent games
+  html+=`<div class="section-header">Recent Games</div><div id="recent-games"><div class="loader"><div class="spinner"></div></div></div>`
+  c.innerHTML=html
+  loadRecentGames()
+}
+
+function selectTeam(abbr) {
+  document.querySelectorAll('.t-btn:not(.used)').forEach(b=>b.classList.remove('selected'))
+  document.getElementById('tbtn-'+abbr)?.classList.add('selected')
+  selectedTeam=abbr
+  document.getElementById('confirm-btn').style.display='block'
+}
+
+async function confirmPick() {
+  if(!selectedTeam||!currentWeek) return
+  const btn=document.getElementById('confirm-btn')
+  btn.disabled=true; btn.textContent='Guardando...'
+  const {error} = await sb.from('picks').insert({player_id:currentUser.id,week_number:currentWeek.week_number,team_abbr:selectedTeam,result:null})
+  if(error){ showToast('Error: '+error.message,'error'); btn.disabled=false; btn.textContent='Confirm Pick' }
+  else { showToast('✅ Pick confirmed: '+selectedTeam); selectedTeam=null; await loadPicksPage() }
+}
+
+async function cancelPick(id) {
+  if(!confirm('¿Change tu pick?')) return
+  await sb.from('picks').delete().eq('id',id)
+  selectedTeam=null; await loadPicksPage()
+}
+
+async function loadRecentGames() {
+  const el=document.getElementById('recent-games')
+  if(!el) return
+  try {
+    const wk=currentWeek?.week_number||1
+    const res=await fetch(`${ESPN_API}?seasontype=2&week=${wk}`)
+    const json=await res.json()
+    const events=(json.events||[]).slice(0,6)
+    if(!events.length){ el.innerHTML='<div class="empty"><div class="empty-txt">No games available yet.</div></div>'; return }
+    let html=''
+    for(const ev of events){
+      const comp=ev.competitions?.[0]; if(!comp) continue
+      const home=comp.competitors.find(t=>t.homeAway==='home')
+      const away=comp.competitors.find(t=>t.homeAway==='away')
+      const done=comp.status?.type?.completed
+      const hA=home.team.abbreviation, aA=away.team.abbreviation
+      const hS=parseInt(home.score||0), aS=parseInt(away.score||0)
+      const hWin=done&&hS>aS, aWin=done&&aS>hS
+      const hc=TEAM_COLORS[hA]||'#1a1a2e'
+      const ac=TEAM_COLORS[aA]||'#1a1a2e'
+      const myTeams=myPicks.map(p=>p.team_abbr)
+      const badge=myTeams.includes(hA)||myTeams.includes(aA)?'★ Your league played here':''
+      const dateStr=ev.date?new Date(ev.date).toLocaleDateString('es-MX',{month:'short',day:'numeric'}):''
+      const statusTxt=done?'Final':(comp.status?.type?.shortDetail||'Not played')
+
+      html+=`
+        <div class="game-card">
+          <div class="game-split">
+            <div class="team-side away" style="background:${ac}">
+              <img class="t-logo" src="${logo(aA)}" onerror="this.style.display='none'" />
+              <div class="t-info">
+                <div class="t-abbr">${aA}</div>
+                <div class="t-record">${away.records?.[0]?.summary||''}</div>
+              </div>
+              ${done?`<div class="t-score ${!aWin?'dim':''}">${aS}</div>`:''}
+            </div>
+            <div class="split-divider"></div>
+            <div class="team-side home" style="background:${hc}">
+              <img class="t-logo" src="${logo(hA)}" onerror="this.style.display='none'" />
+              <div class="t-info">
+                <div class="t-abbr">${hA}</div>
+                <div class="t-record">${home.records?.[0]?.summary||''}</div>
+              </div>
+              ${done?`<div class="t-score ${!hWin?'dim':''}">${hS}</div>`:''}
+            </div>
+          </div>
+          <div class="game-footer">
+            <span class="gf-final">${statusTxt}</span>
+            <div class="gf-sep"></div>
+            <span class="gf-date">${dateStr}</span>
+            ${badge?`<span class="gf-badge">${badge}</span>`:''}
+          </div>
+        </div>`
+    }
+    el.innerHTML=html
+  } catch(e) {
+    el.innerHTML='<div class="empty"><div class="empty-txt">No se pudieron cargar los juegos.</div></div>'
+  }
+}
+
+async function loadLeaderboard() {
+  const {data:players} = await sb.from('profiles').select('*').order('streak',{ascending:false})
+  const {data:allPicks} = await sb.from('picks').select('*')
+  if(!players) return
+  const pm={}
+  allPicks?.forEach(p=>{ if(!pm[p.player_id])pm[p.player_id]=[]; pm[p.player_id].push(p) })
+  const sorted=[...players.filter(p=>p.status==='alive'),...players.filter(p=>p.status!=='alive')]
+  let html='<div class="lboard-wrap">'
+  sorted.forEach((p,i)=>{
+    const picks=(pm[p.id]||[]).sort((a,b)=>a.week_number-b.week_number)
+    const chips=picks.map(pk=>`<div class="chip ${pk.result==='win'?'w':pk.result==='loss'?'l':'p'}" title="Wk${pk.week_number}: ${pk.team_abbr}">${pk.team_abbr}</div>`).join('')
+    const rc=i===0?'r1':i===1?'r2':i===2?'r3':''
+    const alive=p.status==='alive'
+    html+=`<div class="lboard-row">
+      <span class="lb-rank ${rc}">${i+1}</span>
+      <span class="lb-name">${p.username||p.email?.split('@')[0]}</span>
+      <div class="lb-chips">${chips||'<span style="font-size:11px;color:#d1d5db">–</span>'}</div>
+      <span class="lb-status ${alive?'s-alive':'s-dead'}">${alive?'Alive':'Eliminated'}</span>
+    </div>`
+  })
+  html+='</div>'
+  document.getElementById('leaderboard-content').innerHTML=html
+}
+
+async function loadHistory() {
+  const {data:picks} = await sb.from('picks').select('*').eq('player_id',currentUser.id).order('week_number')
+  if(!picks?.length){ document.getElementById('history-content').innerHTML='<div class="empty"><div class="empty-icon">📋</div><div class="empty-txt">No picks yet.</div></div>'; return }
+  let html='<div class="hist-list">'
+  picks.forEach(p=>{
+    const team=NFL_TEAMS.find(t=>t.abbr===p.team_abbr)
+    const resTxt=p.result==='win'?'✅ Won':p.result==='loss'?'❌ Lost':'⏳ Pending'
+    const resCls=p.result==='win'?'hr-w':p.result==='loss'?'hr-l':'hr-p'
+    html+=`<div class="hist-row">
+      <span class="hist-wk">Wk ${p.week_number}</span>
+      <div class="hist-team"><img src="${logo(p.team_abbr)}" onerror="this.style.display='none'" /><span class="hist-team-name">${team?.name||p.team_abbr}</span></div>
+      <span class="hist-result ${resCls}">${resTxt}</span>
+    </div>`
+  })
+  html+='</div>'
+  document.getElementById('history-content').innerHTML=html
+}
+
+function populateWeekSelects(){
+  ['admin-week-num','admin-results-week'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel) return
+    for(let w=1;w<=18;w++) sel.innerHTML+=`<option value="${w}">Week ${w}</option>`
+  })
+}
+
+async function loadAdminPage(){
+  const {data:players} = await sb.from('profiles').select('*').order('username')
+  let html='<div class="admin-players">'
+  players?.forEach(p=>{
+    const alive=p.status==='alive'
+    html+=`<div class="admin-p-row">
+      <span style="flex:1;font-size:13px;font-weight:700">${p.username||p.email}</span>
+      <span class="lb-status ${alive?'s-alive':'s-dead'}">${alive?'Alive':'Elim.'}</span>
+      ${alive?`<button class="btn-sm-red" onclick="eliminatePlayer('${p.id}')">Eliminate</button>`:`<button class="btn-sm-green" onclick="revivePlayer('${p.id}')">Revive</button>`}
+    </div>`
+  })
+  html+='</div>'
+  document.getElementById('admin-players-list').innerHTML=html
+}
+
+async function adminOpenWeek(){
+  const wk=document.getElementById('admin-week-num').value
+  const dl=document.getElementById('admin-deadline').value
+  if(!wk) return showToast('Select a week','error')
+  await sb.from('weeks').upsert({week_number:parseInt(wk),status:'open',deadline:dl||null},{onConflict:'week_number'})
+  await loadCurrentWeek(); showToast(`✅ Week ${wk} abierta`)
+}
+
+async function adminCloseWeek(){
+  const wk=document.getElementById('admin-week-num').value
+  if(!wk) return showToast('Select a week','error')
+  await sb.from('weeks').upsert({week_number:parseInt(wk),status:'closed'},{onConflict:'week_number'})
+  showToast(`🔒 Week ${wk} cerrada`)
+}
+
+async function fetchNFLResults(){
+  const wk=document.getElementById('admin-results-week').value
+  if(!wk) return showToast('Select a week','error')
+  const list=document.getElementById('results-list')
+  list.innerHTML='<div class="loader"><div class="spinner"></div></div>'
+  try {
+    const res=await fetch(`${ESPN_API}?seasontype=2&week=${wk}`)
+    const json=await res.json()
+    liveResults={}
+    let html=''
+    for(const ev of (json.events||[])){
+      const c=ev.competitions?.[0]; if(!c) continue
+      const home=c.competitors.find(t=>t.homeAway==='home')
+      const away=c.competitors.find(t=>t.homeAway==='away')
+      const done=c.status?.type?.completed
+      const hA=home.team.abbreviation,aA=away.team.abbreviation
+      const hS=parseInt(home.score||0),aS=parseInt(away.score||0)
+      if(done){ liveResults[hA]=hS>aS?'win':'loss'; liveResults[aA]=aS>hS?'win':'loss' }
+      const winner=done?(hS>aS?hA:aA):null
+      html+=`<div class="result-row">
+        <span style="font-weight:800;font-size:12px">${aA} @ ${hA}</span>
+        <span style="font-size:11px;color:#6b7280">${done?`${aS}–${hS}`:'Pending'}</span>
+        ${done?`<span class="lb-status s-alive" style="font-size:10px">✅ ${winner}</span>`:`<span style="font-size:10px;color:#9ca3af">–</span>`}
+      </div>`
+    }
+    list.innerHTML=html||'<div class="empty"><div class="empty-txt">No games</div></div>'
+  } catch(e){ list.innerHTML='<div class="empty"><div class="empty-txt">Error loading</div></div>' }
+}
+
+async function processEliminations(){
+  const wk=document.getElementById('admin-results-week').value
+  if(!wk||!Object.keys(liveResults).length) return showToast('Fetch results first','error')
+  const {data:picks} = await sb.from('picks').select('*').eq('week_number',parseInt(wk))
+  if(!picks?.length) return showToast('No picks this week','error')
+  let count=0
+  for(const pick of picks){
+    const result=liveResults[pick.team_abbr]; if(!result) continue
+    await sb.from('picks').update({result}).eq('id',pick.id)
+    if(result==='loss') await sb.from('profiles').update({status:'eliminated'}).eq('id',pick.player_id)
+    count++
+  }
+  showToast(`⚡ ${count} picks processed`); loadAdminPage()
+}
+
+async function revivePlayer(id){ await sb.from('profiles').update({status:'alive'}).eq('id',id); showToast('✅ Revived'); loadAdminPage() }
+async function eliminatePlayer(id){ if(!confirm('¿Eliminate?')) return; await sb.from('profiles').update({status:'eliminated'}).eq('id',id); showToast('Eliminated'); loadAdminPage() }
+
+let toastTimer
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast')
+  t.textContent=msg; t.className='show '+type
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.className='',3000)
+}
+</script>
+</body>
+</html>
